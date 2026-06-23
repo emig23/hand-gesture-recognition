@@ -1,0 +1,14 @@
+torch
+torchvision
+opencv-python
+scikit-learn
+matplotlib
+seaborn
+pillow
+numpy
+huggingface_hub
+pyautogui
+pycaw
+comtypes
+screen-brightness-control
+wmi
