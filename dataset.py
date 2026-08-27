@@ -1,15 +1,16 @@
 import os
 import shutil
-import zipfile
 import cv2
 import numpy as np
 
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-from huggingface_hub import hf_hub_download
+from datasets import load_dataset
 
-from config import DATA_ROOT, MODEL_PATH
+from config import DATA_ROOT, GESTURE_CLASSES
+
+IMAGES_PER_CLASS = 6850
 
 def apply_clahe(img_rgb):
     """Apply CLAHE in LAB color space for better contrast under varied lighting"""
@@ -21,56 +22,62 @@ def apply_clahe(img_rgb):
     return cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
 
 
-def download_dataset():
-    """Download and extract the HaGRID 2,000-image subset from HuggingFace"""
-    if os.path.exists(DATA_ROOT) and len(os.listdir(DATA_ROOT)) == len(MODEL_PATH):
+def download_dataset(images_per_class=IMAGES_PER_CLASS):
+    if os.path.exists(DATA_ROOT) and len(os.listdir(DATA_ROOT)) == len(GESTURE_CLASSES):
         print(f'Dataset already exists at {DATA_ROOT}')
         return
 
-    print('Downloading HaGRID dataset...')
-    zip_path = hf_hub_download(
-        repo_id="GestureDetectionConnoisseurs/hagrid_subsets",
-        filename="hagrid-export_2000_images.zip",
-        repo_type="dataset",
-        local_dir="./data/hf_cache"
+    print('Streaming HaGRID dataset from HuggingFace...')
+    ds = load_dataset(
+        "cj-mills/hagrid-classification-512p-no-gesture-150k",
+        split="train",
     )
 
-    # Clear old data
+    label_names = ds.features['label'].names
+    missing = [c for c in GESTURE_CLASSES if c not in label_names]
+    if missing:
+        raise ValueError(
+            f'These GESTURE_CLASSES classes are not in the dataset: {missing}\n'
+            f'Dataset classes are: {label_names}'
+        )
+
     if os.path.exists(DATA_ROOT):
         shutil.rmtree(DATA_ROOT)
     os.makedirs(DATA_ROOT)
+    for cls in GESTURE_CLASSES:
+        os.makedirs(os.path.join(DATA_ROOT, cls), exist_ok=True)
 
-    print('Extracting 18 classes...')
-    with zipfile.ZipFile(zip_path, 'r') as z:
-        for member in z.namelist():
-            parts = member.split('/')
-            if len(parts) < 2:
-                continue
-            gesture = parts[0]
-            filename = parts[1]
+    counts = {cls: 0 for cls in GESTURE_CLASSES}
+    total_needed = images_per_class * len(GESTURE_CLASSES)
+    print(f'Extracting {images_per_class} images per class ({total_needed} total)...')
 
-            if gesture not in MODEL_PATH:
-                continue
-            if not filename.lower().endswith(('.jpg', '.jpeg', '.png')):
-                continue
+    for example in ds:
+        gesture = label_names[example['label']]
 
-            out_dir = os.path.join(DATA_ROOT, gesture)
-            os.makedirs(out_dir, exist_ok=True)
+        if gesture not in GESTURE_CLASSES or counts[gesture] >= images_per_class:
+            continue
 
-            with z.open(member) as src:
-                with open(os.path.join(out_dir, filename), 'wb') as dst:
-                    dst.write(src.read())
+        img = example['image']  # PIL Image
+        out_path = os.path.join(DATA_ROOT, gesture, f'{gesture}_{counts[gesture]:05d}.jpg')
+        img.convert('RGB').save(out_path, 'JPEG')
+        counts[gesture] += 1
+
+        collected = sum(counts.values())
+        if collected % 20 == 0:
+            print(f'  ...{collected}/{total_needed} collected')
+
+        if all(c >= images_per_class for c in counts.values()):
+            break
 
     print('\nDataset ready. Image counts:')
-    for cls in MODEL_PATH:
+    for cls in GESTURE_CLASSES:
         n = len(os.listdir(os.path.join(DATA_ROOT, cls)))
         print(f'  {cls}: {n} images')
 
 def get_data_loaders():
-    """Create train, validation, and test data loaders"""
-    train_ds = GestureDataset(DATA_ROOT, MODEL_PATH, train_transform, 'train')
-    val_ds = GestureDataset(DATA_ROOT, MODEL_PATH, eval_transform, 'val')
-    test_ds = GestureDataset(DATA_ROOT, MODEL_PATH, eval_transform, 'test')
+    train_ds = GestureDataset(DATA_ROOT, GESTURE_CLASSES, train_transform, 'train')
+    val_ds = GestureDataset(DATA_ROOT, GESTURE_CLASSES, eval_transform, 'val')
+    test_ds = GestureDataset(DATA_ROOT, GESTURE_CLASSES, eval_transform, 'test')
 
     train_loader = DataLoader(train_ds, batch_size=32, shuffle=True, num_workers=2)
     val_loader = DataLoader(val_ds, batch_size=32, shuffle=False, num_workers=2)
@@ -80,8 +87,6 @@ def get_data_loaders():
     return train_loader, val_loader, test_loader, train_ds, val_ds, test_ds
 
 class GestureDataset(Dataset):
-    """Hand gesture dataset with CLAHE preprocessing and train/val/test splits"""
-
     def __init__(self, root, classes, transform=None, split='train',
                  train_ratio=0.76, val_ratio=0.09):
         self.transform = transform
