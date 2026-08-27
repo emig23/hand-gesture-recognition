@@ -4,30 +4,48 @@ from config import GESTURE_CLASSES, DEVICE
 
 NUM_CLASSES = len(GESTURE_CLASSES)
 
-def build_model():
-    """Build MobileNetV2 with transfer learning for gesture classification"""
-    model = models.mobilenet_v2(weights='IMAGENET1K_V1')
+def build_model(architecture='mobilenet_v2', unfreeze_last_n=5, dropout=0.2):
+    if architecture == 'mobilenet_v2':
+        model = models.mobilenet_v2(weights='IMAGENET1K_V1')
+        feature_blocks = model.features
+        in_features = model.last_channel
 
-    # Freeze all layers, then unfreeze the last feature blocks
+    elif architecture == 'mobilenet_v3_small':
+        model = models.mobilenet_v3_small(weights='IMAGENET1K_V1')
+        feature_blocks = model.features
+        in_features = model.classifier[0].in_features
+
+    elif architecture == 'mobilenet_v3_large':
+        model = models.mobilenet_v3_small(weights='IMAGENET1K_V1')
+        feature_blocks = model.features
+        in_features = model.classifier[0].in_features
+
+    elif architecture == 'efficientnet_b0':
+        model = models.efficientnet_b0(weights='IMAGENET1K_V1')
+        feature_blocks = model.features
+        in_features = model.classifier[1].in_features
+
+    else:
+        raise ValueError(f'Unknown architecture: {architecture}')
+
+    # freeze then unfreeze last n feature blocks
     for param in model.parameters():
         param.requires_grad = False
-    for param in model.features[-5:].parameters():
+    for param in feature_blocks[-unfreeze_last_n:].parameters():
         param.requires_grad = True
 
-    # Replace classifier head
     model.classifier = nn.Sequential(
-        nn.Dropout(p=0.2),
-        nn.Linear(model.last_channel, NUM_CLASSES),
+        nn.Dropout(p=dropout),
+        nn.Linear(in_features, NUM_CLASSES)
     )
 
     model = model.to(DEVICE)
 
     total_params = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f'Total params: {total_params:,} | Trainable: {trainable:,}')
+    print(f'[{architecture}] Total params: {total_params:,} | Trainable: {trainable:,}')
 
     return model
-
 
 def load_model(model_path):
     """Load a saved model checkpoint"""
