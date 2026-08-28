@@ -12,7 +12,7 @@ from config import (
     LEARNING_RATE, SCHEDULER_STEP_SIZE, SCHEDULER_GAMMA,
     LOG_EVERY_N_BATCHES, ARCHITECTURE)
 
-def train(architecture=ARCHITECTURE):
+def train(architecture=ARCHITECTURE, num_epochs=NUM_EPOCHS):
     torch.manual_seed(42)
 
     download_dataset()
@@ -34,9 +34,9 @@ def train(architecture=ARCHITECTURE):
     train_losses, val_losses, val_f1s = [], [], []
     best_f1 = 0.0
 
-    print(f'\nTraining on {DEVICE} for {NUM_EPOCHS} epochs...\n')
+    print(f'\nTraining on {DEVICE} for {num_epochs} epochs...\n')
 
-    for epoch in range(1, NUM_EPOCHS + 1):
+    for epoch in range(1, num_epochs + 1):
         # train
         model.train()
         running_loss = 0.0
@@ -73,7 +73,7 @@ def train(architecture=ARCHITECTURE):
         val_f1s.append(macro_f1)
         scheduler.step()
 
-        print(f'Epoch {epoch:>2}/{NUM_EPOCHS} | '
+        print(f'Epoch {epoch:>2}/{num_epochs} | '
               f'Train Loss: {train_loss:.4f} | '
               f'Val Loss: {val_loss:.4f} | '
               f'Val Macro F1: {macro_f1:.4f}')
@@ -85,6 +85,7 @@ def train(architecture=ARCHITECTURE):
             torch.save({
                 'model_state_dict': model.state_dict(),
                 'classes': GESTURE_CLASSES,
+                'architecture': architecture,
                 'macro_f1': macro_f1,
                 'epoch': epoch
             }, model_path)
