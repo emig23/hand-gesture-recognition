@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from torchvision import models
 from config import GESTURE_CLASSES, DEVICE
@@ -48,21 +49,15 @@ def build_model(architecture='mobilenet_v2', unfreeze_last_n=5, dropout=0.2):
     return model
 
 def load_model(model_path):
-    """Load a saved model checkpoint"""
-    import torch
-    model = models.mobilenet_v2(weights=None)
     checkpoint = torch.load(model_path, map_location=DEVICE)
 
-    model.classifier = nn.Sequential(
-        nn.Dropout(p=0.2),
-        nn.Linear(model.last_channel, NUM_CLASSES),
-    )
-
+    model = build_model(architecture=checkpoint['architecture'])
     model.load_state_dict(checkpoint['model_state_dict'])
     model = model.to(DEVICE)
     model.eval()
 
     print(f'Model loaded from {model_path}')
+    print(f'  Architecture: {checkpoint["architecture"]}')
     print(f'  Macro F1: {checkpoint.get("macro_f1", "N/A")}')
     print(f'  FPS: {checkpoint.get("fps", "N/A")}')
 
