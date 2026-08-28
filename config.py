@@ -13,3 +13,14 @@ GESTURE_CLASSES = [
     'ok', 'one', 'palm', 'peace', 'peace_inverted', 'rock',
     'stop', 'stop_inverted', 'three', 'three2', 'two_up', 'two_up_inverted'
 ]
+
+# Data
+IMAGES_PER_CLASS = 6850
+
+# Training hyperparams
+NUM_EPOCHS = 10
+LEARNING_RATE = 1e-4
+SCHEDULER_STEP_SIZE = 4
+SCHEDULER_GAMMA = 0.5
+LOG_EVERY_N_BATCHES = 200
+ARCHITECTURE = 'mobilenet_v2'

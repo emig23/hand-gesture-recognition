@@ -4,17 +4,13 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import f1_score
 import matplotlib.pyplot as plt
-
-from config import DEVICE, GESTURE_CLASSES, MODEL_PATH, PLOTS_DIR
 from dataset import download_dataset, get_data_loaders
 from model import build_model
 
-NUM_EPOCHS = 10
-LEARNING_RATE = 1e-4
-SCHEDULER_STEP_SIZE = 4
-SCHEDULER_GAMMA = 0.5
-LOG_EVERY_N_BATCHES = 200
-ARCHITECTURE = 'mobilenet_v2'
+from config import (
+    DEVICE, GESTURE_CLASSES, MODEL_PATH, PLOTS_DIR, NUM_EPOCHS,
+    LEARNING_RATE, SCHEDULER_STEP_SIZE, SCHEDULER_GAMMA,
+    LOG_EVERY_N_BATCHES, ARCHITECTURE)
 
 def train(architecture=ARCHITECTURE):
     torch.manual_seed(42)

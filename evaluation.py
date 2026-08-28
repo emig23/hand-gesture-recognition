@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from PIL import Image
 from sklearn.metrics import f1_score, classification_report, confusion_matrix
-
-from config import MODEL_PATH, GESTURE_CLASSES, DEVICE
 from dataset import get_data_loaders, apply_clahe, eval_transform
 from model import load_model
+
+from config import MODEL_PATH, GESTURE_CLASSES, DEVICE
 
 def evaluate_model():
     """Run test evaluation, confusion matrix, and latency benchmark."""
