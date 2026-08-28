@@ -9,18 +9,22 @@ from sklearn.metrics import f1_score, classification_report, confusion_matrix
 from dataset import get_data_loaders, apply_clahe, eval_transform
 from model import load_model
 
-from config import MODEL_PATH, GESTURE_CLASSES, DEVICE
+from config import (
+    MODEL_PATH, GESTURE_CLASSES, DEVICE, PLOTS_DIR, ARCHITECTURE,
+    N_LATENCY_FRAMES, TARGET_F1, TARGET_LATENCY_MS, TARGET_FPS)
 
-def evaluate_model():
-    """Run test evaluation, confusion matrix, and latency benchmark."""
+def evaluate_model(architecture=ARCHITECTURE):
+    model_path = MODEL_PATH.replace('.pth', f'_{architecture}.pth')
 
-    # Load model
-    model, checkpoint = load_model(MODEL_PATH)
+    # load model
+    model, checkpoint = load_model(model_path)
+    classes = checkpoint.get('classes', GESTURE_CLASSES)
 
-    # Load test data
+    # load test data
     _, _, test_loader, _, _, test_ds = get_data_loaders()
 
-    # Test evaluation
+
+    # test evaluation
     print('\n--- Test Evaluation ---')
     model.eval()
     all_preds, all_labels = [], []
@@ -36,28 +40,26 @@ def evaluate_model():
     print(f'Test Macro F1: {macro_f1:.4f}')
     print(f'Target:        0.9000  ->  {"PASS" if macro_f1 >= 0.9 else "NEAR TARGET"}')
     print()
-    print(classification_report(all_labels, all_preds, target_names=GESTURE_CLASSES, zero_division=0))
+    print(classification_report(all_labels, all_preds, target_names=classes, zero_division=0))
 
     # Confusion matrix
-    os.makedirs('./plots', exist_ok=True)
-
+    os.makedirs(PLOTS_DIR, exist_ok=True)
     cm = confusion_matrix(all_labels, all_preds)
     plt.figure(figsize=(7, 6))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-                xticklabels=GESTURE_CLASSES, yticklabels=GESTURE_CLASSES)
+                xticklabels=classes, yticklabels=classes)
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
-    plt.title('Confusion Matrix — Test Set')
+    plt.title(f'Confusion Matrix — Test Set ({architecture})')
     plt.tight_layout()
-    plt.savefig(os.path.join('./plots', 'confusion_matrix.png'), dpi=150)
-    plt.show()
-    print(f'Confusion matrix saved to {'./plots'}/confusion_matrix.png')
+    cm_path = os.path.join(PLOTS_DIR, f'confusion_matrix_{architecture}.png')
+    plt.savefig(cm_path, dpi=150)
+    print(f'Confusion matrix saved to {cm_path}')
 
     # Latency benchmark
     print('\n--- Latency Benchmark ---')
-    N_FRAMES = 1000
     dummy_frames = [np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
-                    for _ in range(N_FRAMES)]
+                    for _ in range(N_LATENCY_FRAMES)]
 
     latencies = []
     with torch.no_grad():
@@ -87,19 +89,19 @@ def evaluate_model():
     plt.axvline(100, color='black', linestyle=':', label='Target: 100 ms')
     plt.xlabel('Latency (ms)')
     plt.ylabel('Count')
-    plt.title('End-to-End Inference Latency Distribution (1,000 frames)')
+    plt.title(f'End-to-End Inference Latency Distribution ({N_LATENCY_FRAMES} frames, {architecture})')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(os.path.join('./plots', 'latency_distribution.png'), dpi=150)
-    plt.show()
-    print(f'Latency plot saved to {'./plots'}/latency_distribution.png')
+    lat_path = os.path.join(PLOTS_DIR, f'latency_distribution_{architecture}.png')
+    plt.savefig(lat_path, dpi=150)
+    print(f'Latency plot saved to {lat_path}')
 
     # Update saved model with benchmark results
     checkpoint['macro_f1'] = macro_f1
     checkpoint['mean_latency_ms'] = mean_lat
     checkpoint['fps'] = fps
-    torch.save(checkpoint, MODEL_PATH)
-    print(f'\nUpdated {MODEL_PATH} with benchmark metrics')
+    torch.save(checkpoint, model_path)
+    print(f'\nUpdated {model_path} with benchmark metrics')
 
     # Summary
     print('\n' + '=' * 50)
