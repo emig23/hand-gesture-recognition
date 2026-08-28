@@ -11,9 +11,6 @@ from config import MODEL_PATH, GESTURE_CLASSES, DEVICE
 from dataset import get_data_loaders, apply_clahe, eval_transform
 from model import load_model
 
-
-
-
 def evaluate_model():
     """Run test evaluation, confusion matrix, and latency benchmark."""
 

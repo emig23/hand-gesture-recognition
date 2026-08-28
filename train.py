@@ -9,45 +9,56 @@ from config import DEVICE, GESTURE_CLASSES, MODEL_PATH, PLOTS_DIR
 from dataset import download_dataset, get_data_loaders
 from model import build_model
 
-def train():
-    """Train the gesture recognition model."""
+NUM_EPOCHS = 10
+LEARNING_RATE = 1e-4
+SCHEDULER_STEP_SIZE = 4
+SCHEDULER_GAMMA = 0.5
+LOG_EVERY_N_BATCHES = 200
+ARCHITECTURE = 'mobilenet_v2'
 
-    # Download data if needed
+def train(architecture=ARCHITECTURE):
+    torch.manual_seed(42)
+
     download_dataset()
-
-    # Load data
     train_loader, val_loader, _, train_ds, val_ds, _ = get_data_loaders()
 
-    # Build model
-    model = build_model()
+    model = build_model(architecture=architecture)
 
     # Loss, optimizer, scheduler
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
-        lr=1e-4
+        lr=LEARNING_RATE
     )
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.5)
+    scheduler = optim.lr_scheduler.StepLR(
+        optimizer, step_size=SCHEDULER_STEP_SIZE, gamma=SCHEDULER_GAMMA)
 
     # Training loop
+    model_path = MODEL_PATH.replace('.pth', f'_{architecture}.pth') # for diff architectures
     train_losses, val_losses, val_f1s = [], [], []
+    best_f1 = 0.0
 
-    print(f'\nTraining on {DEVICE} for {10} epochs...\n')
+    print(f'\nTraining on {DEVICE} for {NUM_EPOCHS} epochs...\n')
 
-    for epoch in range(1, 10 + 1):
-        # Train
+    for epoch in range(1, NUM_EPOCHS + 1):
+        # train
         model.train()
         running_loss = 0.0
-        for imgs, labels in train_loader:
+        for i, (imgs, labels) in enumerate(train_loader):
             imgs, labels = imgs.to(DEVICE), labels.to(DEVICE)
             optimizer.zero_grad()
-            loss = criterion(model(imgs), labels)
+            outputs = model(imgs)
+            loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
             running_loss += loss.item() * imgs.size(0)
+
+            if i % LOG_EVERY_N_BATCHES == 0:
+                print(f'  epoch {epoch} | batch {i}/{len(train_loader)} | loss: {loss.item():.4f}')
+
         train_loss = running_loss / len(train_ds)
 
-        # Validate
+        # validate
         model.eval()
         val_loss = 0.0
         all_preds, all_labels = [], []
@@ -66,20 +77,28 @@ def train():
         val_f1s.append(macro_f1)
         scheduler.step()
 
-        print(f'Epoch {epoch:>2}/{10} | '
+        print(f'Epoch {epoch:>2}/{NUM_EPOCHS} | '
               f'Train Loss: {train_loss:.4f} | '
               f'Val Loss: {val_loss:.4f} | '
               f'Val Macro F1: {macro_f1:.4f}')
 
-    # Save model
-    torch.save({
-        'model_state_dict': model.state_dict(),
-        'classes': GESTURE_CLASSES,
-        'macro_f1': val_f1s[-1],
-    }, MODEL_PATH)
-    print(f'\nModel saved to {MODEL_PATH}')
+        # save curr best model
+        if macro_f1 > best_f1:
+            best_f1 = macro_f1
+            os.makedirs(os.path.dirname(model_path), exist_ok=True)
+            torch.save({
+                'model_state_dict': model.state_dict(),
+                'classes': GESTURE_CLASSES,
+                'macro_f1': macro_f1,
+                'epoch': epoch
+            }, model_path)
+            print(f'  → New best model saved (F1={macro_f1:.4f})')
+
+    print(f'\nTraining complete. Best Val Macro F1: {best_f1:.4f}')
+    print(f'Model saved to {model_path}')
 
     # Plot training curves
+    plot_path = os.path.join(PLOTS_DIR, f'training_curves_{architecture}.png')
     os.makedirs(PLOTS_DIR, exist_ok=True)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
@@ -106,4 +125,4 @@ def train():
 
 
 if __name__ == '__main__':
-    train()
+    train(architecture='mobilenet_v2')
