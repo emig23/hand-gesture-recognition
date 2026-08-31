@@ -9,6 +9,8 @@ from datasets import load_dataset
 
 from config import DATA_ROOT, GESTURE_CLASSES, IMAGES_PER_CLASS
 
+cv2.setNumThreads(0)
+
 def apply_clahe(img_rgb):
     """Apply CLAHE in LAB color space for better contrast under varied lighting"""
     lab = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2LAB)
@@ -76,9 +78,9 @@ def get_data_loaders():
     val_ds = GestureDataset(DATA_ROOT, GESTURE_CLASSES, eval_transform, 'val')
     test_ds = GestureDataset(DATA_ROOT, GESTURE_CLASSES, eval_transform, 'test')
 
-    train_loader = DataLoader(train_ds, batch_size=32, shuffle=True, num_workers=4)
-    val_loader = DataLoader(val_ds, batch_size=32, shuffle=False, num_workers=4)
-    test_loader = DataLoader(test_ds, batch_size=32, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_ds, batch_size=32, shuffle=True, num_workers=4, persistent_workers=True, pin_memory=True)
+    val_loader = DataLoader(val_ds, batch_size=32, shuffle=False, num_workers=4, persistent_workers=True, pin_memory=True)
+    test_loader = DataLoader(test_ds, batch_size=32, shuffle=False, num_workers=4, persistent_workers=True, pin_memory=True)
 
     print(f'Train: {len(train_ds)} | Val: {len(val_ds)} | Test: {len(test_ds)}')
     return train_loader, val_loader, test_loader, train_ds, val_ds, test_ds
