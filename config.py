@@ -14,6 +14,23 @@ GESTURE_CLASSES = [
     'stop', 'stop_inverted', 'three', 'three2', 'two_up', 'two_up_inverted'
 ]
 
+# Live Cam
+GESTURE_ACTIONS = {
+    "like":    ("Like (Volume Up)",      "volume_up"),
+    "dislike": ("Dislike (Volume Down)", "volume_down"),
+    "ok":      ("Ok (Play/Pause)",       "play_pause"),
+    "call":    ("Call (Screenshot)",     "screenshot"),
+    "peace":   ("Peace (Prev Track)",    "prev_track"),
+}
+
+HOLD_SECONDS    = 0.5
+COOLDOWN        = 1.0
+VOLUME_STEP     = 0.05
+BRIGHTNESS_STEP = 10
+
+IMAGENET_MEAN = [0.485, 0.456, 0.406]
+IMAGENET_STD  = [0.229, 0.224, 0.225]
+
 # Data
 IMAGES_PER_CLASS = 6850
 
