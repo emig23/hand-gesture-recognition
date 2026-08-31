@@ -6,6 +6,7 @@ from sklearn.metrics import f1_score
 import matplotlib.pyplot as plt
 from dataset import download_dataset, get_data_loaders
 from model import build_model
+from evaluation import evaluate_model
 
 from config import (
     DEVICE, GESTURE_CLASSES, MODEL_PATH, PLOTS_DIR, NUM_EPOCHS,
@@ -119,7 +120,3 @@ def train(architecture=ARCHITECTURE, num_epochs=NUM_EPOCHS):
     print(f'Training curves saved to {PLOTS_DIR}/training_curves.png')
 
     return model
-
-
-if __name__ == '__main__':
-    train(architecture='mobilenet_v2')
