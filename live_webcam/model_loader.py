@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torchvision import models
 
-def load_mode(checkpoint_path: str, device: torch.device):
+def load_model(checkpoint_path: str, device: torch.device):
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     classes = checkpoint["classes"]
     architecture = checkpoint.get("architecture", "mobilenet_v2")
