@@ -31,12 +31,25 @@ def execute_action(action_key: str, vol_interface, screenshot_dir: str) -> str:
         return action_key.replace("_", " ").title()
 
     try:
-        cur = vol_interface.GetMasterVolumeLevelScalar()
         if action_key == "volume_up":
+            cur = vol_interface.GetMasterVolumeLevelScalar()
             new = min(1.0, cur + VOLUME_STEP)
-        else:
+            vol_interface.SetMasterVolumeLevelScalar(new, None)
+            return f"Volume {int(new * 100)}%"
+
+        elif action_key == "volume_down":
+            cur = vol_interface.GetMasterVolumeLevelScalar()
             new = max(0.0, cur - VOLUME_STEP)
-        vol_interface.SetMasterVolumeLevelScalar(new, None)
-        return f"Volume {int(new * 100)}%"
+            vol_interface.SetMasterVolumeLevelScalar(new, None)
+            return f"Volume {int(new * 100)}%"
+
+        elif action_key == "mute":
+            muted = vol_interface.GetMute()
+            vol_interface.SetMute(not muted, None)
+            return "Unmuted" if muted else "Muted"
+
+        else:
+            return f"STILL WORKING: {action_key}"
+
     except Exception as e:
         return f"Vol error: {e}"
